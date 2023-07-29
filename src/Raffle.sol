@@ -1,11 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
+import {VRFCoordinatorV2Interface} from "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import {VRFConsumerBaseV2} from "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+
 /// @title A sample Raffle Contract
 /// @author Prince Allwin
 /// @notice This contract is for creating a sample raffle
 /// @dev Implements Chainlink VRFv2
-contract Raffle {
+contract Raffle is VRFConsumerBaseV2 {
+    /*/////////////////////////////////////////////////////////////////////////////
+                                TYPE DECLARATIONS
+    /////////////////////////////////////////////////////////////////////////////*/
+
+    ////////////////////// ENUM ////////////////////
+    /// @dev OPEN --> 0 | CALCULATING -> 1
+    enum RaffleState {
+        OPEN,
+        CALCULATING
+    }
+
     /*/////////////////////////////////////////////////////////////////////////////
                                 PRIVATE STORAGE
     /////////////////////////////////////////////////////////////////////////////*/
@@ -24,12 +38,46 @@ contract Raffle {
     /// @dev stores the last time when the raffle was drawn.
     uint256 private s_lastTimestamp;
 
+    /// @dev keeps track of the recent winner
+    address private s_recentWinner;
+
+    /// @dev keeps track of the raffle state
+    RaffleState private s_raffleState;
+
+    ////////////////////// VRF ////////////////////
+
+    /// @dev vrfCoordinator address will change chain to chain
+    /// @dev vrfCoordinator address will be set during the deployment
+    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+
+    /// @dev The gas lane to use, which specifies the maximum gas price to bump to.
+    /// @dev gas lane will be set during the deployment
+    bytes32 private immutable i_gasLane;
+
+    /// @dev Your subscription ID.
+    /// @dev SubscriptionId will be set during the deployment
+    uint64 private immutable i_subscriptionId;
+
+    /// @dev This limit based on the network that you select, the size of the request,
+    // and the processing of the callback request in the fulfillRandomWords()
+    /// @dev CallbackGasLimit will be set during the deployment
+    uint32 private immutable i_callbackGasLimit;
+
+    /// @dev No of block confirmations required
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
+
+    /// @dev We require only 1 random number per request
+    uint32 private constant NUM_WORDS = 1;
+
     /*/////////////////////////////////////////////////////////////////////////////
                                 EVENTS
     /////////////////////////////////////////////////////////////////////////////*/
 
     /// @param player emits if a player entered the raffle
     event EnteredRaffle(address indexed player);
+
+    /// @param winner emits if a winner is picked
+    event PickedWinner(address indexed winner);
 
     /*/////////////////////////////////////////////////////////////////////////////
                                 CUSTOM ERRORS
@@ -38,6 +86,12 @@ contract Raffle {
     /// @dev If not enough ETH sent by user
     error Raffle__NotEnoughETHSent();
 
+    /// @dev If the transaction failed while sending back money to the player
+    error Raffle_TransferFailed();
+
+    /// @dev If the raffle state is not OPEN
+    error Raffle__RaffleNotOpen();
+
     /*/////////////////////////////////////////////////////////////////////////////
                                     CONSTRUCTOR
     /////////////////////////////////////////////////////////////////////////////*/
@@ -45,36 +99,63 @@ contract Raffle {
     /// @dev Entrancefee will be in ETH
     /// @param _entranceFee Entracefee will be defined while deploying the contract
     /// @param _interval Interval will be defined while deploying the contract
-    constructor(uint256 _entranceFee, uint256 _interval) {
+    constructor(
+        uint256 _entranceFee,
+        uint256 _interval,
+        address _vrfCoordinator,
+        bytes32 _gasLane,
+        uint32 _callbackGasLimit,
+        uint64 _subscriptionId
+    ) VRFConsumerBaseV2(_vrfCoordinator) {
         i_entranceFee = _entranceFee;
         i_interval = _interval;
 
-        /// s_lastTimestamp is set initially
-        /// when the contract gets deployed, the clock will start
+        /// @dev s_lastTimestamp is set initially
+        /// @dev when the contract gets deployed, the clock will start
         s_lastTimestamp = block.timestamp;
+
+        /// @dev raffle state is set default as OPEN
+        s_raffleState = RaffleState.OPEN;
+
+        /////////////// VRF ///////////////////
+        i_vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
+        i_gasLane = _gasLane;
+        i_callbackGasLimit = _callbackGasLimit;
+        i_subscriptionId = _subscriptionId;
     }
 
     /*/////////////////////////////////////////////////////////////////////////////
                                 External Functions
     /////////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev follows CHECK, EFFECTS, INTERACTIONS
     /// @dev enterRaffle is "payable" because users have to pay to enter the lottery.
     /// @dev reverts with a custom error if `msg.value` < `entranceFee`
+    /// @dev reverts with a custom error if raffle state is not OPEN
     /// @dev player is added to the players[] if i_entrance fee is met
     /// @dev an event will be emitted after a player is added to players[]
     function enterRaffle() external payable {
+        /// @dev CHECKS
         if (msg.value < i_entranceFee) {
             revert Raffle__NotEnoughETHSent();
         }
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__RaffleNotOpen();
+        }
+
+        /// @dev EFFECTS
         s_players.push(payable(msg.sender));
         emit EnteredRaffle(msg.sender);
     }
 
+    /// @dev follows CHECK, EFFECTS, INTERACTIONS
     /// @dev To pick a random winner
     /// 1. Get a random winner
     /// 2. Use the random number to pick a player
     /// 3. The above 2 steps should be automatically called using chainlink automation
     function pickWinner() external {
+        /// @dev CHECKS
+
         /// @dev block.timestamp will denote the current time in seconds
         /// @dev s_lastTimestamp will denote when was the previous raffle draw
         /// @dev to pick the winner again, enough time should be passed
@@ -89,6 +170,65 @@ contract Raffle {
 
         if ((block.timestamp - s_lastTimestamp) < i_interval) {
             revert();
+        }
+
+        /// @dev EFFECTS
+
+        /// @dev Raffle state is set to calculating before calling the chainlink vrf
+        s_raffleState = RaffleState.CALCULATING;
+
+        /// @dev INTERACTIONS
+
+        /// @dev Chainlink vrf is a 2 transaction process.
+        /// 1. Request the Random Number
+        /// 2. Get the random number
+        /// we will request the random number
+        /// callback fn from chainlink vrf will call the fn to picking the actual winner.
+
+        /// @dev vrfCoordinator contract will contain a fn called "requestRandomWords"
+        /// @dev Will revert if subscription is not set and funded.
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_gasLane,
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+    }
+
+    /// @dev follows CHECK, EFFECTS, INTERACTIONS
+    /// this fn will called by chainlink vrf to return random number
+    function fulfillRandomWords(
+        uint256 _requestId,
+        uint256[] memory _randomWords
+    ) internal override {
+        /// @dev EFFECTS
+
+        /// @dev _randomWords will return an array, since we requested only one random number, it will have only one
+        uint256 indexOfWinner = _randomWords[0] % s_players.length;
+        /// @dev let's say _randomWords[0] = 122214 and s_players.length = 3
+        /// @dev since the players length is 3
+        /// @dev picked winner will come under the index of players eg: 0,1,2
+        /// @dev 122214 % 3 = 0 --> 0th index will be the winner
+        address payable pickedWinner = s_players[indexOfWinner];
+        s_recentWinner = pickedWinner;
+
+        /// @dev reset the players array after winner is picked
+        s_players = new address payable[](0);
+
+        /// @dev reset the last time stamp after winner is picked
+        s_lastTimestamp = block.timestamp;
+
+        /// @dev raffle state is set as OPEN, after the winner is picked
+        s_raffleState = RaffleState.OPEN;
+
+        emit PickedWinner(pickedWinner);
+
+        /// @dev INTERACTIONS
+        /// @dev reverts with custom error if the transaction fails
+        (bool success, ) = pickedWinner.call{value: address(this).balance}("");
+        if (!success) {
+            revert Raffle_TransferFailed();
         }
     }
 
