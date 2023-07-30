@@ -216,7 +216,7 @@ contract Raffle is VRFConsumerBaseV2 {
     /// 1. Get a random winner
     /// 2. Use the random number to pick a player
     /// 3. The above 2 steps should be automatically called using chainlink automation
-    function pickWinner() internal {
+    function pickWinner() public {
         /// @dev EFFECTS
 
         /// @dev Raffle state is set to calculating before calling the chainlink vrf
@@ -284,5 +284,13 @@ contract Raffle is VRFConsumerBaseV2 {
     /// @return Returns the actual entrace fee required to enter the raffle
     function getEntranceFee() external view returns (uint256) {
         return i_entranceFee;
+    }
+
+    function getRaffleState() external view returns (RaffleState) {
+        return s_raffleState;
+    }
+
+    function getPlayer(uint256 _index) external view returns (address) {
+        return s_players[_index];
     }
 }
