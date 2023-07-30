@@ -1,8 +1,9 @@
-
-Enter Raffle
-# when msg.value < Entrancefee
-## it should revert with custom error "Raffle__NotEnoughETHSent"
-# when raffle state is not OPEN
-## it should revert with custom error "Raffle__NotOpen"
-# when msg.value > EntranceFee and raffle state is OPEN
-## player should be recorded in s_players[]
+RaffleTest.t.sol
+├── Enter Raffle
+├── when msg.value < Entrancefee
+│   └── it should revert with custom error "Raffle__NotEnoughETHSent"
+├── when raffle state is not OPEN
+│   └── it should revert with custom error "Raffle__NotOpen"
+└── when msg.value > EntranceFee and raffle state is OPEN
+    ├── player should be recorded in s_players[]
+    └── it should emit a {EnteredRaffle} event
