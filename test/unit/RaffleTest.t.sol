@@ -99,4 +99,54 @@ contract RaffleTest is Test {
         emit EnteredRaffle(PLAYER);
         raffle.enterRaffle{value: entranceFee}();
     }
+
+    /*/////////////////////////////////////////////////////////////////////////////
+                                Check Up Keep
+    /////////////////////////////////////////////////////////////////////////////*/
+
+    function test_CheckUpkeep_ReturnsFalse_IfIthasNoBalance() public {
+        // Arrange
+        vm.prank(PLAYER);
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+        // Act
+        (bool upkeepNeeded, ) = raffle.checkUpkeep("");
+        // Assert
+        assertEq(upkeepNeeded, false, "checkupkeep");
+    }
+
+    function test_CheckUpkeep_ReturnsFalse_IfRaffleIsNotOpen() public {
+        // Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+        raffle.performUpkeep("");
+        // Act
+        (bool upkeepNeeded, ) = raffle.checkUpkeep("");
+        // Assert
+        assertEq(upkeepNeeded, false, "checkupkeep");
+    }
+
+    function test_CheckUpkeep_ReturnsFalse_IfEnoughTime_HasntPassed() public {
+        // Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        // Act
+        (bool upkeepNeeded, ) = raffle.checkUpkeep("");
+        // Assert
+        assertEq(upkeepNeeded, false, "checkupkeep");
+    }
+
+    function test_checkupKeep_returnsTrue_WhenConditions_AreMet() public {
+        // Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+        // Act
+        (bool upkeepNeeded, ) = raffle.checkUpkeep("");
+        // Assert
+        assertEq(upkeepNeeded, true, "checkupkeep");
+    }
 }

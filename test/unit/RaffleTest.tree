@@ -1,4 +1,5 @@
 RaffleTest.t.sol
+
 ├── Enter Raffle
 ├── when msg.value < Entrancefee
 │   └── it should revert with custom error "Raffle__NotEnoughETHSent"
@@ -7,3 +8,11 @@ RaffleTest.t.sol
 └── when msg.value > EntranceFee and raffle state is OPEN
     ├── player should be recorded in s_players[]
     └── it should emit a {EnteredRaffle} event
+
+
+└── checkupkeep
+    └── returns true if below conditions are met
+        ├── enough time has passed from the previous raffle draw
+        ├── raffle state is OPEN
+        ├── raffle has balance
+        └── raffle has players
