@@ -16,3 +16,9 @@ RaffleTest.t.sol
         ├── raffle state is OPEN
         ├── raffle has balance
         └── raffle has players
+
+#performUpkeep
+## when checkupkeep returns false
+### it should revert with a custom error "Raffle__UpkeepNotNeeded(balance, players, rafflestate)"
+## when checkupkeep returns true
+### requestRandomWords fn should be called

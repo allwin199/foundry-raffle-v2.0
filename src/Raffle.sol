@@ -79,6 +79,8 @@ contract Raffle is VRFConsumerBaseV2 {
     /// @param winner emits if a winner is picked
     event PickedWinner(address indexed winner);
 
+    event RequestedRaffleWinner(uint256 indexed requestId);
+
     /*/////////////////////////////////////////////////////////////////////////////
                                 CUSTOM ERRORS
     /////////////////////////////////////////////////////////////////////////////*/
@@ -232,13 +234,15 @@ contract Raffle is VRFConsumerBaseV2 {
 
         /// @dev vrfCoordinator contract will contain a fn called "requestRandomWords"
         /// @dev Will revert if subscription is not set and funded.
-        i_vrfCoordinator.requestRandomWords(
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
             i_gasLane,
             i_subscriptionId,
             REQUEST_CONFIRMATIONS,
             i_callbackGasLimit,
             NUM_WORDS
         );
+
+        emit RequestedRaffleWinner(requestId);
     }
 
     /// @dev follows CHECK, EFFECTS, INTERACTIONS
