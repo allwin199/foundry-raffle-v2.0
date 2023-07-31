@@ -220,9 +220,17 @@ contract RaffleTest is Test {
     /*/////////////////////////////////////////////////////////////////////////////
                                 FulFillRandomWords
     /////////////////////////////////////////////////////////////////////////////*/
+
+    modifier skipFork() {
+        if (block.chainid != 31337) {
+            return;
+        }
+        _;
+    }
+
     function testFuzz_FulfillRandomWords_CanOnlyBeCalled_AfterPerformUpkeep(
         uint256 _randomRequestId
-    ) public RaffleEnteredAndTimePassed {
+    ) public RaffleEnteredAndTimePassed skipFork {
         // Arrange
         vm.expectRevert("nonexistent request");
         VRFCoordinatorV2Mock(vrfCoordinator).fulfillRandomWords(
@@ -234,6 +242,7 @@ contract RaffleTest is Test {
     function test_FulfillRandomWords_PicksAWinner_ResetsAnd_SendsMoney()
         public
         RaffleEnteredAndTimePassed
+        skipFork
     {
         // Arrange
         uint160 additionalEntrants = 5;
