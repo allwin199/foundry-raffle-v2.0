@@ -17,8 +17,22 @@ RaffleTest.t.sol
         ├── raffle has balance
         └── raffle has players
 
-#performUpkeep
-## when checkupkeep returns false
-### it should revert with a custom error "Raffle__UpkeepNotNeeded(balance, players, rafflestate)"
-## when checkupkeep returns true
-### requestRandomWords fn should be called
+
+└── performUpkeep
+    ├── when checkupkeep returns false
+    │   └── it should revert with a custom error "Raffle__UpkeepNotNeeded(balance, players, rafflestate)"
+    └── when checkupkeep returns true
+        ├── requestRandomWords fn should be called
+        ├── it should emit requestId
+        └── it should change the raffle state to calculating
+
+
+└── fulFillRandomWords
+    ├── when called without calling performupkeep
+    │   └── it should revert with "nonexistent request" error
+    └── when called after calling performupkeep
+        ├── it should pick the recent winner
+        ├── raffle state should be reset to OPEN
+        ├── players[] should be reset to 0
+        ├── last_timestamp should be updated correctly
+        └── winner should be able to withdraw the entire prize
