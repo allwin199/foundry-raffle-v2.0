@@ -16,6 +16,12 @@
     2. Forked Testnet
     3. Forked Mainnet
 
+To run test on forked testnet
+
+```
+$ forge test --fork-url $SEPOLIA_RPC_URL
+```
+
 ## Create Subscription
 
 To create subscription
