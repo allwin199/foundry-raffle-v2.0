@@ -15,3 +15,20 @@
     1. Work on local chain
     2. Forked Testnet
     3. Forked Mainnet
+
+## Create Subscription
+
+To create subscription
+https://vrf.chain.link
+current subId = 3294
+
+This subscription will be funded through script.
+If there is no SubId, then subscription id will be created and funded through script.
+
+## Add Consumer
+
+To add consumer
+https://automation.chain.link
+use the custom logic
+
+Fund the consumer using link tokens
