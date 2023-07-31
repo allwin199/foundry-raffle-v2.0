@@ -17,7 +17,8 @@ contract DeployRaffle is Script {
             bytes32 gasLane,
             uint32 callbackGasLimit,
             uint64 subscriptionId,
-            address link
+            address link,
+
         ) = helperConfig.activeNetworkConfig();
 
         if (subscriptionId == 0) {
